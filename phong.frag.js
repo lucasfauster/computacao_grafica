@@ -16,12 +16,12 @@ void main()
   vec4 vColor = vec4(1.0, 1.0, 1.0, 1.0);
 
   // parametros da luz
-  vec4 lightPos = vec4(0.0, 3.0, 0.0, 1.0); 
+  vec4 lightPos = vec4(0.0, 0.0, 10.0, 1.0); 
 
   vec4 ambientColor = vec4(1.0, 1.0, 1.0, 1.0); 
   vec4 diffuseColor = vec4(1.0, 1.0, 1.0, 1.0);
   vec4 speclarColor = vec4(1.0, 1.0, 1.0, 1.0);
-  float kA = 0.2, kD = 0.5, kS = 0.75, sN = 2.0;
+  float kA = 0.4, kD = 0.9, kS = 0.9, sN = 3.0;
 
   mat4 modelview = u_view * u_model;
 
