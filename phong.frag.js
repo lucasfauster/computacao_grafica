@@ -23,13 +23,19 @@ void main()
 {
   vec4 vColor = vec4(1.0, 1.0, 1.0, 1.0);
 
-  vec4 lighting;
+  vec4 lighting = vec4(0.0, 0.0, 0.0, 0.0);
+
+  mat4 modelview = u_view * u_model;
+
+  vec4 viewPos = modelview * vPosition;
+  vec4 viewNrm = transpose(inverse(modelview)) * vNormal;
+  viewNrm = normalize(viewNrm);
       
   for(int i=0; i < NUMBER_LIGHTS; i++) {
     float distanceFromLight = distance(lightPosition[i], vPosition);
     vec4 direction = normalize(lightPosition[i] - vPosition);
     
-    float lightCalculation = max(0.0, dot(vNormal, direction));
+    float lightCalculation = max(0.0, dot(viewNrm, direction));
 
     float falloff = (
       1.0 / (

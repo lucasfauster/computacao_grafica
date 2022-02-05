@@ -63,18 +63,18 @@ class Scene {
 
   createLights(){
     let firstLight = new Light(
-      [-15, 15, 15, 1.0],  //position
-      [1,1,0.9, 1.0],      //color
-      1,              //intensity
-      0,              //linearAttenuation
+      [-3.0, 0.0, 3.0, 1.0],  //position
+      [1.0,1.0,0.0, 1.0],      //color
+      1.0,              //intensity
+      0.1,              //linearAttenuation
       1/1000         //quadraticAttenuation
     );
     
     let secondLight = new Light(
-      [15, -5, 5, 1.0],    //position
-      [0.6,0.8,1.0, 1.0],  //color
-      1,              //intensity
-      0,              //linearAttenuation
+      [3.0, 0.0, 3.0, 1.0],    //position
+      [1.0,1.0,1.0, 1.0],  //color
+      1.0,              //intensity
+      0.2,              //linearAttenuation
       1/1000         //quadraticAttenuation
     );
 
