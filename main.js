@@ -17,12 +17,12 @@ class Scene {
 
     // projection matrix
     this.frustum = {
-      left: (-100 * width) / height,
-      right: (100 * width) / height,
-      bottom: -100,
-      top: 100,
-      near: -100,
-      far: 100,
+      left: (-70 * width) / height,
+      right: (70 * width) / height,
+      bottom: -70,
+      top: 70,
+      near: -70,
+      far: 70,
       fovy: Math.PI / 3,
       aspect: width / height,
     };
@@ -44,6 +44,12 @@ class Scene {
 
     this.obj.forEach((obj) => {obj.model = mat4.create()});
 
+    this.lights = {
+      points: [],
+      locations: {},
+      buffers: {}
+    };
+
     // openGL initialization
     this.init(gl);
   }
@@ -52,6 +58,54 @@ class Scene {
     this.createShaderProgram(gl);
     this.createBuffers(gl);
     this.createUniforms(gl);
+    this.createLights();
+  }
+
+  createLights(){
+    let firstLight = new Light(
+      [-15, 15, 15, 1.0],  //position
+      [1,1,0.9, 1.0],      //color
+      1,              //intensity
+      0,              //linearAttenuation
+      1/1000         //quadraticAttenuation
+    );
+    
+    let secondLight = new Light(
+      [15, -5, 5, 1.0],    //position
+      [0.6,0.8,1.0, 1.0],  //color
+      1,              //intensity
+      0,              //linearAttenuation
+      1/1000         //quadraticAttenuation
+    );
+
+    this.lights.points = [firstLight, secondLight];
+    const NUM_POINTS = this.lights.points.length;
+
+    this.lights.buffers = {
+      position             : new Float32Array(NUM_POINTS * 4),
+      color                : new Float32Array(NUM_POINTS * 4),
+      intensity            : new Float32Array(NUM_POINTS),
+      linearAttenuation    : new Float32Array(NUM_POINTS),
+      quadraticAttenuation : new Float32Array(NUM_POINTS)
+    };
+
+    
+    for( var i=0; i < NUM_POINTS; i++ ) {
+      
+      var light = this.lights.points[i];
+      
+      this.lights.buffers.position[i * 4]         = light.position[0];
+      this.lights.buffers.position[i * 4 + 1]     = light.position[1];
+      this.lights.buffers.position[i * 4 + 2]     = light.position[2];
+      this.lights.buffers.position[i * 4 + 3]     = light.position[3];
+      this.lights.buffers.color[i * 4]            = light.color[0];
+      this.lights.buffers.color[i * 4 + 1]        = light.color[1];
+      this.lights.buffers.color[i * 4 + 2]        = light.color[2];
+      this.lights.buffers.color[i * 4 + 3]        = light.color[3];
+      this.lights.buffers.intensity[i]            = light.intensity;
+      this.lights.buffers.linearAttenuation[i]    = light.linearAttenuation;
+      this.lights.buffers.quadraticAttenuation[i] = light.quadraticAttenuation;
+    }
   }
 
   createShaderProgram(gl) {
@@ -66,6 +120,14 @@ class Scene {
     this.modelLoc = gl.getUniformLocation(this.program, "u_model");
     this.viewLoc = gl.getUniformLocation(this.program, "u_view");
     this.projectionLoc = gl.getUniformLocation(this.program, "u_projection");
+
+    this.lights.locations = {
+      position             : gl.getUniformLocation(this.program, "lightPosition"),
+      color                : gl.getUniformLocation(this.program, "lightColor"),
+      intensity            : gl.getUniformLocation(this.program, "lightIntensity"),
+      linearAttenuation    : gl.getUniformLocation(this.program, "lightLinearAttenuation"),
+      quadraticAttenuation : gl.getUniformLocation(this.program, "lightQuadraticAttenuation")
+    };
   }
 
   getPlus(A, B){
@@ -42999,11 +43061,6 @@ class Scene {
     mat4.identity(model);
 
     mat4.rotateZ(model, model, this.angle);
-    // this.mat * [sin(this.angle) -cos(this.angle) 0 0, cor(this.angle) sin(this.angle) 0 0, 0 0 1 0, 0 0 0 1]
-
-    mat4.scale(model, model, [2.5, 2.5, 2.5]);
-
-    mat4.translate(model, model, [-0.5, -0.5, -0.5]);
 
     mat4.scale(model, model, [10, 10, 10]);
 
@@ -43018,7 +43075,6 @@ class Scene {
   viewMatrix() {
     mat4.identity(this.view);
     mat4.lookAt(this.view, this.eye, this.at, this.up);
-    // TODO: Tentar implementar as contas diretamente
   }
 
   projectionMatrix(type) {
@@ -43043,11 +43099,10 @@ class Scene {
         this.frustum.far
       );
     }
-    // TODO: Tentar implementar as contas diretamente
   }
 
   createBuffers(gl) {
-    this.obj.forEach((obj, index) => {
+    this.obj.forEach((obj) => {
       const vbos = obj.getVBOs();
 
       const coords = vbos[0];
@@ -43096,14 +43151,22 @@ class Scene {
     gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
 
+    this.viewMatrix();
+    this.projectionMatrix("ortho");
+
+    gl.uniformMatrix4fv(this.viewLoc, false, this.view);
+    gl.uniformMatrix4fv(this.projectionLoc, false, this.proj);
+
     this.obj.forEach((obj, index) => {
       this.modelMatrix(obj.model, index);
-      this.viewMatrix();
-      this.projectionMatrix("ortho");
 
       gl.uniformMatrix4fv(this.modelLoc, false, obj.model);
-      gl.uniformMatrix4fv(this.viewLoc, false, this.view);
-      gl.uniformMatrix4fv(this.projectionLoc, false, this.proj);
+
+      gl.uniform4fv(this.lights.locations.position,             this.lights.buffers.position);
+      gl.uniform4fv(this.lights.locations.color,                this.lights.buffers.color);
+      gl.uniform1fv(this.lights.locations.intensity,            this.lights.buffers.intensity);
+      gl.uniform1fv(this.lights.locations.linearAttenuation,    this.lights.buffers.linearAttenuation);
+      gl.uniform1fv(this.lights.locations.quadraticAttenuation, this.lights.buffers.quadraticAttenuation);
 
       gl.drawElements(
         gl.TRIANGLES,
@@ -43115,6 +43178,26 @@ class Scene {
 
     gl.disable(gl.CULL_FACE);
   }
+}
+
+class Light{
+  constructor(position, color, intensity, linearAttenuation, quadraticAttenuation) {
+    // A vector 3 representing the position of the light
+  this.position = position;
+  
+  // A vector 3 of the color, with values ranging from 0-1
+  this.color = color;
+  
+  // A single number around the value of 1 that adjusts the light intensity
+  this.intensity = intensity;
+  
+  // How much the light dims by the distance from the light
+  // Interactive graph of how this works: https://www.desmos.com/calculator/jdzi6pupp5
+  this.linearAttenuation = linearAttenuation;
+  this.quadraticAttenuation = quadraticAttenuation;
+
+  }
+  
 }
 
 class Main {

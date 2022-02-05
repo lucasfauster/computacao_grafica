@@ -1,5 +1,7 @@
 export default
 `#version 300 es
+#define NUMBER_LIGHTS 2
+
 precision highp float;
 
 in vec4 vPosition;
@@ -9,37 +11,38 @@ uniform mat4 u_model;
 uniform mat4 u_view;
 uniform mat4 u_projection;
 
+uniform vec4 lightPosition[NUMBER_LIGHTS];
+uniform vec4 lightColor[NUMBER_LIGHTS];
+uniform float lightIntensity[NUMBER_LIGHTS];
+uniform float lightLinearAttenuation[NUMBER_LIGHTS];
+uniform float lightQuadraticAttenuation[NUMBER_LIGHTS];
+
 out vec4 minhaColor;
 
 void main()
 {
   vec4 vColor = vec4(1.0, 1.0, 1.0, 1.0);
 
-  // parametros da luz
-  vec4 lightPos = vec4(0.0, 0.0, 10.0, 1.0); 
+  vec4 lighting;
+      
+  for(int i=0; i < NUMBER_LIGHTS; i++) {
+    float distanceFromLight = distance(lightPosition[i], vPosition);
+    vec4 direction = normalize(lightPosition[i] - vPosition);
+    
+    float lightCalculation = max(0.0, dot(vNormal, direction));
 
-  vec4 ambientColor = vec4(1.0, 1.0, 1.0, 1.0); 
-  vec4 diffuseColor = vec4(1.0, 1.0, 1.0, 1.0);
-  vec4 speclarColor = vec4(1.0, 1.0, 1.0, 1.0);
-  float kA = 0.4, kD = 0.9, kS = 0.9, sN = 3.0;
+    float falloff = (
+      1.0 / (
+        1.0 +
+        lightLinearAttenuation[i] * distanceFromLight +
+        lightQuadraticAttenuation[i] * pow(distanceFromLight, 2.0)
+      )
+    );
 
-  mat4 modelview = u_view * u_model;
-
-  vec4 viewPos = modelview * vPosition;
-  vec4 viewNrm = transpose(inverse(modelview)) * vNormal;
-  viewNrm = normalize(viewNrm);
-
-  // componente difusa
-  vec4 lightViewPos = u_view * lightPos;
-  vec4 lightDir = normalize(lightViewPos - viewPos);
-  float iD = max(0.0, dot(lightDir, viewNrm));
-
-  // componente especular
-  vec4 cameraDir = normalize(vec4(0.0, 0.0, 0.0, 1.0) - viewPos);
-  vec4 halfVec   = normalize(lightDir + cameraDir);
-  float iS = pow(max(0.0, dot(viewNrm, halfVec)), sN);
-
-  minhaColor = (kA * ambientColor + kD * iD * diffuseColor + kS * iS * speclarColor) * vColor;
+    lighting += lightCalculation * falloff * lightIntensity[i] * lightColor[i];
+  }
+  
+  minhaColor =  vec4(vColor.xyz * lighting.xyz, 1.0);
 }`
 
 
