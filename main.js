@@ -5,28 +5,29 @@ import Shader from "./shader.js";
 import Mesh from "./mesh.js";
 
 class Scene {
-  constructor(gl, width, height) {
+  constructor(gl, width, height, proj) {
     // model matrix
     this.angle = 0;
 
     // view matrix
-    this.eye = vec3.fromValues(2.0, 2.0, 2.0);
+    this.eye = vec3.fromValues(5.0, 5.0, 5.0);
     this.at = vec3.fromValues(0.0, 0.0, 0.0);
-    this.up = vec3.fromValues(0.0, 0.0, 2.0);
+    this.up = vec3.fromValues(0.0, 0.0, 5.0);
     this.view = mat4.create();
 
     // projection matrix
     this.frustum = {
-      left: (-70 * width) / height,
-      right: (70 * width) / height,
-      bottom: -70,
-      top: 70,
-      near: -70,
-      far: 70,
-      fovy: Math.PI / 3,
+      left: (-5 * width) / height,
+      right: (5 * width) / height,
+      bottom: -5,
+      top: 5,
+      near: -10,
+      far: 10,
+      fovy: Math.PI/3,
       aspect: width / height,
     };
     this.proj = mat4.create();
+    this.projType = proj;
 
     this.vertShd = null;
     this.fragShd = null;
@@ -50,7 +51,6 @@ class Scene {
       buffers: {}
     };
 
-    // openGL initialization
     this.init(gl);
   }
 
@@ -66,7 +66,7 @@ class Scene {
       [-3.0, 0.0, 3.0, 1.0],  //position
       [1.0,1.0,0.0, 1.0],      //color
       1.0,              //intensity
-      0.1,              //linearAttenuation
+      0.2,              //linearAttenuation
       1/1000         //quadraticAttenuation
     );
     
@@ -147,7 +147,6 @@ class Scene {
 
     return result;
   }
-
 
   getNormls(coords, ids) {
     const normls = [];
@@ -43062,8 +43061,6 @@ class Scene {
 
     mat4.rotateZ(model, model, this.angle);
 
-    mat4.scale(model, model, [10, 10, 10]);
-
     if(index == 1){ 
       mat4.translate(model, model, [2, 0, 0]);
     }else{
@@ -43077,26 +43074,26 @@ class Scene {
     mat4.lookAt(this.view, this.eye, this.at, this.up);
   }
 
-  projectionMatrix(type) {
+  projectionMatrix() {
     mat4.identity(this.proj);
 
-    if (type === "ortho") {
+    if (this.projType === "ortho") {
       mat4.ortho(
         this.proj,
         this.frustum.left,
         this.frustum.right,
         this.frustum.bottom,
         this.frustum.top,
-        this.frustum.near,
-        this.frustum.far
+        -20,
+        20
       );
     } else {
       mat4.perspective(
         this.proj,
         this.frustum.fovy,
         this.frustum.aspect,
-        this.frustum.near,
-        this.frustum.far
+        -2,
+        2
       );
     }
   }
@@ -43144,7 +43141,7 @@ class Scene {
     });
   }
 
-  draw(gl) {
+  draw(gl, proj) {
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vaoLoc);
 
@@ -43152,21 +43149,21 @@ class Scene {
     gl.cullFace(gl.BACK);
 
     this.viewMatrix();
-    this.projectionMatrix("ortho");
+    this.projectionMatrix();
 
     gl.uniformMatrix4fv(this.viewLoc, false, this.view);
     gl.uniformMatrix4fv(this.projectionLoc, false, this.proj);
+
+    gl.uniform4fv(this.lights.locations.position,             this.lights.buffers.position);
+    gl.uniform4fv(this.lights.locations.color,                this.lights.buffers.color);
+    gl.uniform1fv(this.lights.locations.intensity,            this.lights.buffers.intensity);
+    gl.uniform1fv(this.lights.locations.linearAttenuation,    this.lights.buffers.linearAttenuation);
+    gl.uniform1fv(this.lights.locations.quadraticAttenuation, this.lights.buffers.quadraticAttenuation);
 
     this.obj.forEach((obj, index) => {
       this.modelMatrix(obj.model, index);
 
       gl.uniformMatrix4fv(this.modelLoc, false, obj.model);
-
-      gl.uniform4fv(this.lights.locations.position,             this.lights.buffers.position);
-      gl.uniform4fv(this.lights.locations.color,                this.lights.buffers.color);
-      gl.uniform1fv(this.lights.locations.intensity,            this.lights.buffers.intensity);
-      gl.uniform1fv(this.lights.locations.linearAttenuation,    this.lights.buffers.linearAttenuation);
-      gl.uniform1fv(this.lights.locations.quadraticAttenuation, this.lights.buffers.quadraticAttenuation);
 
       gl.drawElements(
         gl.TRIANGLES,
@@ -43201,7 +43198,7 @@ class Light{
 }
 
 class Main {
-  constructor() {
+  constructor(proj) {
     const canvas = document.querySelector("#glcanvas");
 
     this.gl = canvas.getContext("webgl2");
@@ -43213,7 +43210,8 @@ class Main {
     this.scene = new Scene(
       this.gl,
       this.gl.canvas.width,
-      this.gl.canvas.height
+      this.gl.canvas.height,
+      proj
     );
   }
 
@@ -43234,6 +43232,7 @@ class Main {
 }
 
 window.onload = () => {
-  const app = new Main();
+  const proj = window.prompt("Tipo da projeção: ", "ortho");
+  const app = new Main(proj);
   app.draw();
 };
